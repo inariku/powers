@@ -6,6 +6,13 @@ Documentation is available at https://kiro.dev/docs/powers/
 
 ## Available powers
 
+### aidlc
+**AI-DLC Workflow** - AI-Driven Development Life Cycle - an intelligent software development workflow that adapts to your needs, maintains quality standards, and keeps you in control. Guides you through inception, construction, and operations phases with structured requirements, design, and code generation.
+
+**MCP Servers:** None (Knowledge Base Power)
+
+---
+
 ### aurora-dsql
 **Build a database with Aurora DSQL** - Build and deploy a PostgreSQL-compatible serverless distributed SQL database with Aurora DSQL - manage schemas, execute queries, and handle migrations with DSQL-specific constraints.
 
