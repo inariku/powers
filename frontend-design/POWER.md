@@ -169,3 +169,11 @@ Remember: Extraordinary creative work is possible. Don't hold back - show what c
 ## Learn More
 
 See the [Frontend Aesthetics Cookbook](https://github.com/anthropics/claude-cookbooks/blob/main/coding/prompting_for_frontend_aesthetics.ipynb) for detailed guidance on prompting for high-quality frontend design.
+
+## Attribution
+
+This power is inspired by and builds upon concepts from the [Frontend Aesthetics Cookbook](https://github.com/anthropics/claude-cookbooks/blob/main/coding/prompting_for_frontend_aesthetics.ipynb) by Anthropic, which is licensed under the MIT License.
+
+---
+
+**License:** MIT
