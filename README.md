@@ -42,13 +42,6 @@ Documentation is available at https://kiro.dev/docs/powers/
 
 ---
 
-### aws-transform-custom
-**Crush tech debt with AWS Transform custom (Public Preview)** - Perform code upgrades, migrations, codebase analysis, and transformations using AWS Transform custom.
-
-**MCP Servers:** None
-
----
-
 ### cloud-architect
 **Build infrastructure on AWS** - Build AWS infrastructure with CDK in Python following AWS Well-Architected framework best practices.
 
@@ -133,6 +126,10 @@ Documentation is available at https://kiro.dev/docs/powers/
 
 ---
 
+
+## License
+
+Unless otherwise specified by the license in the individual power or the repository that hosts it, Kiro users have a non-exclusive license to access, download, and otherwise use the power for their personal or business purposes.
 
 ## Security
 
