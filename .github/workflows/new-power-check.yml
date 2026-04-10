@@ -1,7 +1,7 @@
 name: New Power PR Check
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened]
 
 permissions:
@@ -12,10 +12,13 @@ jobs:
   check-new-power:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout base branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Fetch PR head
+        run: git fetch origin "pull/${{ github.event.pull_request.number }}/head:pr-head"
 
       - name: Detect new power folders
         id: detect
@@ -23,17 +26,20 @@ jobs:
           SKIP_DIRS=".git .github .kiro checkout"
 
           # Get folders that exist on the base branch
-          BASE_FOLDERS=$(git ls-tree --name-only -d "origin/${{ github.event.pull_request.base.ref }}" 2>/dev/null || true)
+          BASE_FOLDERS=$(git ls-tree --name-only -d "${{ github.event.pull_request.base.sha }}" 2>/dev/null || true)
 
           # Get top-level folders touched in this PR
-          PR_FOLDERS=$(git diff --name-only "origin/${{ github.event.pull_request.base.ref }}...HEAD" \
+          PR_FOLDERS=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...pr-head" \
             | cut -d'/' -f1 \
             | sort -u)
 
+          # Get directories present in the PR head tree
+          PR_HEAD_DIRS=$(git ls-tree --name-only -d pr-head 2>/dev/null || true)
+
           NEW_FOLDERS=""
           for folder in $PR_FOLDERS; do
-            # Skip files (no directory in diff)
-            [ -d "$folder" ] || continue
+            # Skip if not a directory in the PR head
+            echo "$PR_HEAD_DIRS" | grep -qx "$folder" || continue
 
             # Skip meta directories
             skip=false
