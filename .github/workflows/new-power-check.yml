@@ -12,61 +12,50 @@ jobs:
   check-new-power:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout base branch
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Fetch PR head
-        run: git fetch origin "pull/${{ github.event.pull_request.number }}/head:pr-head"
-
-      - name: Detect new power folders
-        id: detect
-        run: |
-          SKIP_DIRS=".git .github .kiro checkout"
-
-          # Get folders that exist on the base branch
-          BASE_FOLDERS=$(git ls-tree --name-only -d "${{ github.event.pull_request.base.sha }}" 2>/dev/null || true)
-
-          # Get top-level folders touched in this PR
-          PR_FOLDERS=$(git diff --name-only "${{ github.event.pull_request.base.sha }}...pr-head" \
-            | cut -d'/' -f1 \
-            | sort -u)
-
-          # Get directories present in the PR head tree
-          PR_HEAD_DIRS=$(git ls-tree --name-only -d pr-head 2>/dev/null || true)
-
-          NEW_FOLDERS=""
-          for folder in $PR_FOLDERS; do
-            # Skip if not a directory in the PR head
-            echo "$PR_HEAD_DIRS" | grep -qx "$folder" || continue
-
-            # Skip meta directories
-            skip=false
-            for s in $SKIP_DIRS; do
-              [ "$folder" = "$s" ] && skip=true && break
-            done
-            $skip && continue
-
-            # Check if folder existed on base branch
-            if ! echo "$BASE_FOLDERS" | grep -qx "$folder"; then
-              NEW_FOLDERS="$NEW_FOLDERS $folder"
-            fi
-          done
-
-          NEW_FOLDERS=$(echo "$NEW_FOLDERS" | xargs)
-          echo "new_folders=$NEW_FOLDERS" >> "$GITHUB_OUTPUT"
-          if [ -n "$NEW_FOLDERS" ]; then
-            echo "has_new=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_new=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Comment on PR
-        if: steps.detect.outputs.has_new == 'true'
+      - name: Detect new power folders and comment
         uses: actions/github-script@v7
         with:
           script: |
+            const SKIP_DIRS = new Set(['.git', '.github', '.kiro', 'checkout']);
+
+            // Get files changed in this PR
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            // Extract unique top-level folders from changed files
+            const touchedFolders = new Set(
+              files
+                .map(f => f.filename.split('/')[0])
+                .filter(f => f.includes('/') === false)
+            );
+
+            // Get top-level directories on the base branch
+            const { data: baseTree } = await github.rest.git.getTree({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tree_sha: context.payload.pull_request.base.sha,
+            });
+            const baseFolders = new Set(
+              baseTree.tree
+                .filter(item => item.type === 'tree')
+                .map(item => item.path)
+            );
+
+            // Find new folders: in PR diff, not on base, not in skip list
+            const newFolders = [...touchedFolders].filter(
+              f => !baseFolders.has(f) && !SKIP_DIRS.has(f)
+            );
+
+            if (newFolders.length === 0) {
+              console.log('No new power folders detected.');
+              return;
+            }
+
+            console.log(`New power folders detected: ${newFolders.join(', ')}`);
+
             const user = context.payload.pull_request.user.login;
             const body = [
               `Hi @${user}, thank you for your contribution!`,
