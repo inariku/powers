@@ -56,8 +56,6 @@ Key points:
 - `Default` is optional but recommended — without it, `States.NoChoiceMatched` is thrown.
 - Choice states cannot be terminal (no `End` field).
 
-### Structure
-
 ```json
 "RouteOrder": {
   "Type": "Choice",
@@ -104,8 +102,6 @@ JSONata supports rich boolean logic:
 ## Wait State
 
 Delays execution for a specified duration or until a timestamp.
-
-### Wait with Dynamic Seconds
 
 ```json
 "DynamicWait": {
@@ -178,7 +174,7 @@ Key points:
 
 ## Map State
 
-Iterates over a JSON array or a JSON object, processing each element (potentially in parallel).
+Iterates over a JSON array or a JSON object, processing each element (potentially in parallel). See `examples/nested-map-parallel-structures.asl.json` for a complete state machine example combining Map + Parallel states.
 
 ### Key Map Fields
 
@@ -201,12 +197,28 @@ The `ItemProcessor` can include a `ProcessorConfig` to control execution mode.
 - `DISTRIBUTED` — iterations run as child executions. Use for large-scale processing (thousands+ items), items read from S3, or when you need per-iteration execution history.
 
 ```json
-"ItemProcessor": {
-  "ProcessorConfig": {
-    "Mode": "INLINE"
+"ProcessOrders": {
+  "Type": "Map",
+  "Items": "{% $states.input.orders %}",
+  "MaxConcurrency": 10,
+  "ItemProcessor": {
+    "ProcessorConfig": { "Mode": "INLINE" },
+    "StartAt": "ProcessOne",
+    "States": {
+      "ProcessOne": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke",
+        "Arguments": {
+          "FunctionName": "arn:aws:lambda:us-east-1:123456789012:function:ProcessOrder:$LATEST",
+          "Payload": "{% $states.input %}"
+        },
+        "Output": "{% $states.result.Payload %}",
+        "End": true
+      }
+    }
   },
-  "StartAt": "ProcessOrder",
-  "States": { ... }
+  "Assign": { "orderResults": "{% $states.result %}" },
+  "Next": "Done"
 }
 ```
 
@@ -264,6 +276,52 @@ When exporting, Step Functions writes `SUCCEEDED_n.json`, `FAILED_n.json`, and `
 
 Without `ResultWriter`, the Map state returns an array of child execution results directly. If the output exceeds 256 KiB, the execution fails with `States.DataLimitExceeded` — use `ResultWriter` to export to S3 instead.
 
+### Distributed Map State Example
+
+```json
+"ProcessCSV": {
+  "Type": "Map",
+  "MaxConcurrency": 100,
+  "ToleratedFailurePercentage": 5,
+  "ItemReader": {
+    "Resource": "arn:aws:states:::s3:getObject",
+    "ReaderConfig": {
+      "InputType": "CSV",
+      "CSVHeaderLocation": "FIRST_ROW"
+    },
+    "Arguments": {
+      "Bucket": "{% $states.input.bucket %}",
+      "Key": "{% $states.input.key %}"
+    }
+  },
+  "ItemProcessor": {
+    "ProcessorConfig": {
+      "Mode": "DISTRIBUTED",
+      "ExecutionType": "EXPRESS"
+    },
+    "StartAt": "ProcessRow",
+    "States": {
+      "ProcessRow": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke",
+        "Arguments": {
+          "FunctionName": "arn:aws:lambda:us-east-1:123456789012:function:ProcessRow:$LATEST",
+          "Payload": "{% $states.input %}"
+        },
+        "Output": "{% $states.result.Payload %}",
+        "End": true
+      }
+    }
+  },
+  "ResultWriter": {
+    "Resource": "arn:aws:states:::s3:putObject",
+    "Arguments": {
+      "Bucket": "{% $states.input.bucket %}",
+      "Prefix": "results"
+    }
+  },
+  "Next": "Done"
+}
+```
 ---
 
-See `examples/nested-map-parallel-structures.asl.json` for a combined Map + Parallel example.
